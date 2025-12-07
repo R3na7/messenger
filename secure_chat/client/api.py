@@ -27,8 +27,11 @@ class APIClient:
         resp.raise_for_status()
         return resp.json()
 
-    def list_users(self) -> List[Dict[str, Any]]:
-        resp = requests.get(f"{self.base_url}/users", headers=self._headers(), timeout=10)
+    def list_users(self, nickname: Optional[str] = None) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {}
+        if nickname:
+            params["nickname"] = nickname
+        resp = requests.get(f"{self.base_url}/users", params=params, headers=self._headers(), timeout=10)
         resp.raise_for_status()
         return resp.json()
 
@@ -48,6 +51,13 @@ class APIClient:
             params={"peer_id": peer_id, "after_message_id": after_message_id},
             headers=self._headers(),
             timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def change_password(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        resp = requests.post(
+            f"{self.base_url}/auth/change_password", json=payload, headers=self._headers(), timeout=10
         )
         resp.raise_for_status()
         return resp.json()

@@ -90,3 +90,36 @@ def _validate_token(header: str | None) -> int:
 def get_current_user_id(authorization: str | None = Header(default=None)) -> int:
     """FastAPI dependency returning authenticated user's id."""
     return _validate_token(authorization)
+
+
+@router.post("/change_password")
+def change_password(
+    payload: schemas.ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    user: Optional[User] = db.query(User).filter(User.id == current_user_id).first()
+    if not user:
+        logger.warning("UNAUTHORIZED_ACCESS reason=user_not_found")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if user.lock_until and user.lock_until > datetime.utcnow():
+        logger.warning("ACCOUNT_BLOCKED login=%s locked_until=%s", user.login, user.lock_until)
+        raise HTTPException(status_code=403, detail=f"Account locked until {user.lock_until}")
+
+    if not bcrypt.checkpw(payload.old_password.encode(), user.password_hash.encode()):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= 5:
+            user.lock_until = datetime.utcnow() + timedelta(minutes=10)
+            logger.warning("ACCOUNT_BLOCKED login=%s locked_until=%s", user.login, user.lock_until)
+        db.commit()
+        logger.info("PASSWORD_CHANGE_FAIL login=%s reason=bad_password", user.login)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    user.password_hash = payload.new_password_hash
+    user.encrypted_private_key = payload.new_encrypted_private_key.encode()
+    user.failed_login_attempts = 0
+    user.lock_until = None
+    db.commit()
+    logger.info("PASSWORD_CHANGE_SUCCESS login=%s user_id=%s", user.login, user.id)
+    return {"message": "Password changed"}

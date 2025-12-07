@@ -33,6 +33,12 @@ class LoginResponse(BaseModel):
     encrypted_private_key: str
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password_hash: str
+    new_encrypted_private_key: str
+
+
 class MessageCreate(BaseModel):
     recipient_id: int
     ciphertext: str

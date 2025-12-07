@@ -1,7 +1,7 @@
 """User listing and public key retrieval routes."""
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from . import schemas
@@ -13,8 +13,15 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", response_model=List[schemas.UserOut])
-def list_users(db: Session = Depends(get_db), _: int = Depends(get_current_user_id)):
-    return db.query(User).all()
+def list_users(
+    nickname: Optional[str] = Query(default=None, description="Filter by exact nickname"),
+    db: Session = Depends(get_db),
+    _: int = Depends(get_current_user_id),
+):
+    query = db.query(User)
+    if nickname:
+        query = query.filter(User.nickname == nickname)
+    return query.all()
 
 
 @router.get("/{user_id}/public_key", response_model=schemas.PublicKeyOut)

@@ -54,3 +54,13 @@ def get_token() -> Optional[str]:
 
 def get_user() -> Optional[Dict[str, Any]]:
     return load_state().get("user")
+
+
+def store_server_url(url: str) -> None:
+    state = load_state()
+    state["server_url"] = url
+    save_state(state)
+
+
+def get_server_url() -> Optional[str]:
+    return load_state().get("server_url")
